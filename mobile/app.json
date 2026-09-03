@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Instagram Account Views",
+    "slug": "instagram-account-views",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#14161F",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "backgroundColor": "#14161F",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "bundleIdentifier": "com.enes.instagramaccountviews",
+      "supportsTablet": false,
+      "entitlements": {
+        "com.apple.developer.devicecheck.appattest-environment": "production"
+      }
+    },
+    "android": {
+      "package": "com.enes.instagramaccountviews",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#14161F"
+      }
+    },
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX",
+          "iosAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
+        }
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "https://api.instagramaccountviews.example.com",
+      "androidCloudProjectNumber": "REPLACE_WITH_GOOGLE_CLOUD_PROJECT_NUMBER"
+    }
+  }
+}

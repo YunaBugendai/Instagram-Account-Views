@@ -1,0 +1,2 @@
+# AdSense onayı geldikten sonra AdSense panelinden alacağın gerçek satırla değiştir:
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
