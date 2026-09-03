@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NumberField } from "./NumberField";
 import { TextField } from "./TextField";
-import { DailyLimitBadge } from "./DailyLimitBadge";
 import { ResultCard } from "./ResultCard";
 import { Disclaimer } from "./Disclaimer";
 import { AdSlot } from "./AdSlot";
@@ -25,14 +24,16 @@ interface FormErrors {
   posts?: string;
 }
 
-interface DailyStatus {
-  remaining: number;
-  limit: number;
-}
+type ViewState =
+  | { kind: "form" }
+  | { kind: "preparing"; username: string; data: EstimateResult }
+  | { kind: "result"; username: string; data: EstimateResult };
 
-interface CalculateResponse extends EstimateResult {
-  status: DailyStatus;
-}
+// Sonuç hemen açılmıyor: reklam alanının gerçekten yüklenip görünür olması için
+// kısa bir "hazırlanıyor" adımı var. Bu, kullanıcıyı reklamı izlemeye zorlayan
+// yapay bir kilit DEĞİL - sadece reklamın göz ardı edilip anında geçilmesini
+// önleyen doğal bir geçiş süresi.
+const PREPARE_DELAY_MS = 1500;
 
 export function Calculator() {
   const [form, setForm] = useState<FormState>({
@@ -42,21 +43,9 @@ export function Calculator() {
     posts: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [status, setStatus] = useState<DailyStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
-  const [result, setResult] = useState<{ username: string; data: CalculateResponse } | null>(
-    null
-  );
-
-  useEffect(() => {
-    fetch("/api/status")
-      .then((res) => res.json())
-      .then(setStatus)
-      .catch(() => {
-        // Sessizce geç - "Hesapla" basıldığında zaten tekrar kontrol edilecek.
-      });
-  }, []);
+  const [view, setView] = useState<ViewState>({ kind: "form" });
 
   function validate(): boolean {
     const next: FormErrors = {};
@@ -91,18 +80,16 @@ export function Calculator() {
       });
       const data = await res.json();
 
-      if (res.status === 429) {
-        setStatus(data.status);
-        setBanner("Günlük arama hakkın bitti. Yarın tekrar dene.");
-        return;
-      }
       if (!res.ok) {
         setBanner(data.error ?? "Girdiğin bilgiler geçersiz görünüyor, tekrar kontrol et.");
         return;
       }
 
-      setResult({ username: form.username.trim(), data });
-      setStatus(data.status);
+      const username = form.username.trim();
+      setView({ kind: "preparing", username, data });
+      setTimeout(() => {
+        setView({ kind: "result", username, data });
+      }, PREPARE_DELAY_MS);
     } catch {
       setBanner("Bir şeyler ters gitti. İnternet bağlantını kontrol edip tekrar dene.");
     } finally {
@@ -110,13 +97,22 @@ export function Calculator() {
     }
   }
 
-  if (result) {
+  if (view.kind === "preparing") {
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-center text-sm text-textSecondary">Sonucun hazırlanıyor...</p>
+        <AdSlot label="Reklam alanı" />
+      </div>
+    );
+  }
+
+  if (view.kind === "result") {
     return (
       <div className="flex flex-col gap-6">
-        <ResultCard username={result.username} result={result.data} />
+        <ResultCard username={view.username} result={view.data} />
         <AdSlot label="Reklam alanı" />
         <button
-          onClick={() => setResult(null)}
+          onClick={() => setView({ kind: "form" })}
           className="rounded-lg border border-border py-3 text-center font-medium text-textPrimary"
         >
           Başka bir hesap dene
@@ -135,8 +131,6 @@ export function Calculator() {
           Instagram'da profilinde gördüğün sayıları gir, sana eğlenceli bir tahmin çıkaralım.
         </p>
       </div>
-
-      {status && <DailyLimitBadge remaining={status.remaining} limit={status.limit} />}
 
       <div className="flex flex-col gap-4">
         <TextField
@@ -175,7 +169,7 @@ export function Calculator() {
 
       <button
         type="submit"
-        disabled={loading || (status !== null && status.remaining <= 0)}
+        disabled={loading}
         className="rounded-lg bg-accent py-3.5 text-center font-semibold text-background transition-opacity disabled:opacity-40"
       >
         {loading ? "Hesaplanıyor..." : "Hesapla"}

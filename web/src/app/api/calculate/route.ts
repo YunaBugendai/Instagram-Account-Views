@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateEstimatedViews } from "@/lib/estimateFormula";
-import { getClientIp, getOrCreateDeviceId } from "@/lib/deviceId";
-import { tryConsumeSearch } from "@/lib/rateLimit";
+import { getClientIp } from "@/lib/ip";
 import { verifyTurnstile } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
@@ -20,6 +19,11 @@ const calculateSchema = z.object({
   turnstileToken: z.string().optional(),
 });
 
+// Not: artık günlük hak / veritabanı yok. Sınırsız kullanıcıya hizmet veriyoruz,
+// gelir modeli her hesaplamada gösterilen reklamdan geliyor (bkz. Calculator.tsx).
+// Turnstile hâlâ burada duruyor çünkü Redis'e ihtiyacı yok, script/bot trafiğini
+// (ki bu hem sunucu maliyeti hem de reklam görüntülenme kalitesi için önemli) ücretsiz
+// engelliyor - istemiyorsan TURNSTILE_SECRET_KEY'i hiç tanımlama, otomatik atlanır.
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const parsed = calculateSchema.safeParse(body);
@@ -31,19 +35,11 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = getClientIp(req.headers);
-
   const botCheckOk = await verifyTurnstile(parsed.data.turnstileToken ?? null, ip);
   if (!botCheckOk) {
     return NextResponse.json({ error: "Bot doğrulaması başarısız" }, { status: 400 });
   }
 
-  const deviceId = getOrCreateDeviceId();
-  const { allowed, status } = await tryConsumeSearch(deviceId, ip);
-
-  if (!allowed) {
-    return NextResponse.json({ error: "Günlük arama hakkın bitti.", status }, { status: 429 });
-  }
-
   const result = calculateEstimatedViews(parsed.data);
-  return NextResponse.json({ ...result, status });
+  return NextResponse.json(result);
 }
